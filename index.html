@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecureVision POS — CCTV Solutions</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --surface3: #1e2330;
+    --border: #252a38;
+    --accent: #00e5ff;
+    --accent2: #ff3d57;
+    --accent3: #7c4dff;
+    --green: #00e676;
+    --yellow: #ffd600;
+    --text: #e8eaf0;
+    --text2: #8892a4;
+    --text3: #555e72;
+    --glow: 0 0 20px rgba(0,229,255,0.15);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    position:fixed; inset:0; z-index:999;
+    background: linear-gradient(135deg, #060810 0%, #0d1220 50%, #060810 100%);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .login-bg {
+    position:absolute; inset:0; overflow:hidden;
+  }
+  .grid-lines {
+    position:absolute; inset:0;
+    background-image: linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridShift 20s linear infinite;
+  }
+  @keyframes gridShift { from{background-position:0 0} to{background-position:60px 60px} }
+  .scan-line {
+    position:absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanDown 4s ease-in-out infinite;
+    opacity:0.5;
+  }
+  @keyframes scanDown { 0%{top:0} 100%{top:100%} }
+
+  .login-card {
+    position:relative; z-index:1;
+    background: rgba(17,19,24,0.9);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    padding: 48px 40px;
+    width: 420px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 0 60px rgba(0,229,255,0.1), 0 40px 80px rgba(0,0,0,0.6);
+    animation: cardIn 0.6s ease;
+  }
+  @keyframes cardIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  .login-logo { display:flex; align-items:center; gap:12px; margin-bottom:36px; }
+  .logo-icon {
+    width:44px; height:44px; border-radius:10px;
+    background: linear-gradient(135deg, var(--accent), #0080ff);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; box-shadow: 0 0 20px rgba(0,229,255,0.3);
+  }
+  .login-logo h1 { font-family:'Rajdhani',sans-serif; font-size:22px; font-weight:700; letter-spacing:1px; }
+  .login-logo span { display:block; font-size:11px; color:var(--text2); letter-spacing:2px; text-transform:uppercase; }
+  .login-tabs { display:flex; gap:4px; margin-bottom:28px; background:var(--surface2); padding:4px; border-radius:8px; }
+  .login-tab {
+    flex:1; padding:8px; text-align:center; cursor:pointer;
+    border-radius:6px; font-size:13px; font-weight:500;
+    color:var(--text2); transition:all 0.2s;
+  }
+  .login-tab.active { background:var(--surface3); color:var(--text); }
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block; font-size:12px; color:var(--text2); margin-bottom:6px; letter-spacing:0.5px; text-transform:uppercase; }
+  .form-group input {
+    width:100%; padding:12px 14px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px;
+    outline:none; transition:border-color 0.2s;
+  }
+  .form-group input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,229,255,0.1); }
+  .btn-login {
+    width:100%; padding:13px;
+    background: linear-gradient(135deg, var(--accent), #0080ff);
+    border:none; border-radius:8px;
+    color:#000; font-family:'Rajdhani',sans-serif;
+    font-size:16px; font-weight:700; letter-spacing:1px;
+    cursor:pointer; transition:all 0.2s; margin-top:8px;
+  }
+  .btn-login:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,229,255,0.3); }
+  .demo-hint { margin-top:20px; padding:12px; background:rgba(0,229,255,0.05); border:1px solid rgba(0,229,255,0.15); border-radius:8px; font-size:12px; color:var(--text2); line-height:1.6; }
+  .demo-hint strong { color:var(--accent); }
+
+  /* ── APP SHELL ── */
+  #app { display:none; height:100vh; }
+  .sidebar {
+    position:fixed; left:0; top:0; bottom:0; width:240px;
+    background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; z-index:100;
+    transition: transform 0.3s;
+  }
+  .sidebar-logo { padding:24px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .sidebar-logo .logo-icon { width:36px; height:36px; font-size:18px; border-radius:8px; }
+  .sidebar-logo h2 { font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; letter-spacing:0.5px; }
+  .sidebar-logo small { display:block; font-size:10px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; }
+  .nav-section { padding:16px 12px 8px; font-size:10px; color:var(--text3); letter-spacing:2px; text-transform:uppercase; }
+  .nav-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; margin:2px 8px; border-radius:8px;
+    cursor:pointer; color:var(--text2); font-size:14px;
+    transition:all 0.15s; position:relative;
+  }
+  .nav-item:hover { background:var(--surface2); color:var(--text); }
+  .nav-item.active { background:rgba(0,229,255,0.1); color:var(--accent); }
+  .nav-item.active::before { content:''; position:absolute; left:-8px; top:50%; transform:translateY(-50%); width:3px; height:20px; background:var(--accent); border-radius:2px; }
+  .nav-icon { width:20px; text-align:center; font-size:16px; }
+  .badge { margin-left:auto; background:var(--accent2); color:#fff; font-size:10px; padding:2px 7px; border-radius:20px; font-weight:600; }
+  .sidebar-footer { margin-top:auto; padding:16px; border-top:1px solid var(--border); }
+  .user-chip { display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; }
+  .avatar { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; }
+  .avatar.admin { background:linear-gradient(135deg,var(--accent),#0080ff); color:#000; }
+  .avatar.client { background:linear-gradient(135deg,var(--accent3),#e040fb); color:#fff; }
+  .user-info { flex:1; }
+  .user-info strong { display:block; font-size:13px; }
+  .user-info small { font-size:11px; color:var(--text2); }
+  .logout-btn { background:none; border:none; color:var(--text3); cursor:pointer; font-size:16px; padding:4px; border-radius:4px; transition:color 0.2s; }
+  .logout-btn:hover { color:var(--accent2); }
+
+  .main { margin-left:240px; min-height:100vh; }
+  .topbar {
+    position:sticky; top:0; z-index:50;
+    background:rgba(10,12,16,0.9); backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+    padding:0 28px; height:60px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .page-title { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; letter-spacing:0.5px; }
+  .topbar-actions { display:flex; align-items:center; gap:12px; }
+  .search-box {
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:7px 14px;
+  }
+  .search-box input { background:none; border:none; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; width:180px; }
+  .icon-btn {
+    width:36px; height:36px; border-radius:8px;
+    background:var(--surface2); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:var(--text2); font-size:15px; transition:all 0.2s;
+  }
+  .icon-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .content { padding:28px; }
+
+  /* ── PAGES ── */
+  .page { display:none; animation: fadeIn 0.3s ease; }
+  .page.active { display:block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── DASHBOARD ── */
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+  .stat-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:20px;
+    position:relative; overflow:hidden;
+    transition:transform 0.2s, box-shadow 0.2s;
+  }
+  .stat-card:hover { transform:translateY(-2px); box-shadow:var(--glow); }
+  .stat-card::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+  .stat-card.cyan::after { background:var(--accent); }
+  .stat-card.red::after { background:var(--accent2); }
+  .stat-card.purple::after { background:var(--accent3); }
+  .stat-card.green::after { background:var(--green); }
+  .stat-label { font-size:11px; color:var(--text2); letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
+  .stat-value { font-family:'Rajdhani',sans-serif; font-size:32px; font-weight:700; line-height:1; }
+  .stat-value.cyan { color:var(--accent); }
+  .stat-value.red { color:var(--accent2); }
+  .stat-value.purple { color:var(--accent3); }
+  .stat-value.green { color:var(--green); }
+  .stat-change { font-size:12px; margin-top:8px; }
+  .stat-icon { position:absolute; right:16px; top:50%; transform:translateY(-50%); font-size:36px; opacity:0.08; }
+  .up { color:var(--green); } .down { color:var(--accent2); }
+
+  .grid-2 { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px; }
+  .grid-2b { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:20px;
+  }
+  .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .card-title { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700; letter-spacing:0.5px; }
+  .see-all { font-size:12px; color:var(--accent); cursor:pointer; text-decoration:none; }
+
+  /* Chart */
+  .chart-area { height:180px; display:flex; align-items:flex-end; gap:8px; padding-top:10px; }
+  .bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .bar {
+    width:100%; border-radius:4px 4px 0 0;
+    background: linear-gradient(to top, rgba(0,229,255,0.3), rgba(0,229,255,0.8));
+    transition: height 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    cursor:pointer; position:relative;
+  }
+  .bar:hover { background: linear-gradient(to top, var(--accent), #40efff); }
+  .bar-label { font-size:10px; color:var(--text3); }
+
+  /* Donut */
+  .donut-wrap { display:flex; align-items:center; gap:20px; }
+  .donut { position:relative; width:100px; height:100px; flex-shrink:0; }
+  .donut svg { transform:rotate(-90deg); }
+  .donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .donut-center strong { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; }
+  .donut-center small { font-size:10px; color:var(--text2); }
+  .donut-legend { flex:1; }
+  .legend-item { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; }
+  .legend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+  /* Table */
+  .table { width:100%; border-collapse:collapse; font-size:13px; }
+  .table th { text-align:left; padding:10px 12px; font-size:11px; color:var(--text2); letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--border); font-weight:500; }
+  .table td { padding:12px 12px; border-bottom:1px solid rgba(37,42,56,0.5); vertical-align:middle; }
+  .table tr:last-child td { border-bottom:none; }
+  .table tr:hover td { background:rgba(255,255,255,0.02); }
+  .status {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600;
+  }
+  .status::before { content:''; width:5px; height:5px; border-radius:50%; }
+  .status.paid { background:rgba(0,230,118,0.12); color:var(--green); }
+  .status.paid::before { background:var(--green); }
+  .status.pending { background:rgba(255,214,0,0.12); color:var(--yellow); }
+  .status.pending::before { background:var(--yellow); }
+  .status.cancelled { background:rgba(255,61,87,0.12); color:var(--accent2); }
+  .status.cancelled::before { background:var(--accent2); }
+  .status.new { background:rgba(0,229,255,0.12); color:var(--accent); }
+  .status.new::before { background:var(--accent); }
+
+  /* ── POS / VENTA ── */
+  .pos-layout { display:grid; grid-template-columns:1fr 360px; gap:16px; }
+  .product-filters { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .filter-chip {
+    padding:6px 14px; border-radius:20px; font-size:12px; font-weight:500;
+    background:var(--surface2); border:1px solid var(--border); color:var(--text2);
+    cursor:pointer; transition:all 0.15s;
+  }
+  .filter-chip.active, .filter-chip:hover { background:rgba(0,229,255,0.1); border-color:var(--accent); color:var(--accent); }
+  .products-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .product-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:14px; cursor:pointer; transition:all 0.15s; position:relative;
+  }
+  .product-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:0 4px 20px rgba(0,229,255,0.1); }
+  .product-card:active { transform:scale(0.98); }
+  .product-emoji { font-size:28px; margin-bottom:8px; display:block; }
+  .product-name { font-size:13px; font-weight:500; margin-bottom:4px; line-height:1.3; }
+  .product-sku { font-size:10px; color:var(--text3); margin-bottom:8px; }
+  .product-price { font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; color:var(--accent); }
+  .product-stock { position:absolute; top:10px; right:10px; font-size:10px; color:var(--text3); }
+  .stock-low { color:var(--accent2) !important; }
+
+  /* Cart */
+  .cart-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; height:fit-content; position:sticky; top:88px; }
+  .cart-title { font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; margin-bottom:4px; }
+  .cart-sub { font-size:12px; color:var(--text2); margin-bottom:16px; }
+  .cart-items { flex:1; max-height:320px; overflow-y:auto; }
+  .cart-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+  .cart-item:last-child { border-bottom:none; }
+  .cart-item-info { flex:1; }
+  .cart-item-name { font-size:13px; font-weight:500; }
+  .cart-item-price { font-size:12px; color:var(--text2); }
+  .qty-ctrl { display:flex; align-items:center; gap:6px; }
+  .qty-btn { width:22px; height:22px; border-radius:4px; background:var(--surface2); border:1px solid var(--border); color:var(--text); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+  .qty-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .qty-num { width:24px; text-align:center; font-size:13px; font-weight:600; }
+  .remove-btn { color:var(--text3); background:none; border:none; cursor:pointer; font-size:14px; transition:color 0.15s; }
+  .remove-btn:hover { color:var(--accent2); }
+  .cart-divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
+  .cart-row { display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px; }
+  .cart-total { font-family:'Rajdhani',sans-serif; font-size:22px; font-weight:700; color:var(--accent); }
+  .client-select { width:100%; padding:10px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; margin-bottom:10px; }
+  .payment-methods { display:flex; gap:6px; margin-bottom:14px; }
+  .pay-btn { flex:1; padding:8px 6px; border-radius:7px; border:1px solid var(--border); background:var(--surface2); color:var(--text2); font-size:11px; cursor:pointer; text-align:center; transition:all 0.15s; }
+  .pay-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(0,229,255,0.08); }
+  .checkout-btn {
+    width:100%; padding:14px;
+    background: linear-gradient(135deg, var(--accent), #0080ff);
+    border:none; border-radius:9px;
+    color:#000; font-family:'Rajdhani',sans-serif;
+    font-size:17px; font-weight:700; letter-spacing:0.5px;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .checkout-btn:hover { box-shadow:0 6px 24px rgba(0,229,255,0.35); transform:translateY(-1px); }
+  .checkout-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  /* ── INVENTORY ── */
+  .inv-controls { display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+  .inv-search {
+    flex:1; display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:9px 14px; min-width:200px;
+  }
+  .inv-search input { background:none; border:none; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; flex:1; }
+  .btn-primary {
+    padding:10px 18px; border-radius:8px;
+    background: linear-gradient(135deg,var(--accent),#0080ff);
+    border:none; color:#000; font-family:'Rajdhani',sans-serif;
+    font-size:14px; font-weight:700; letter-spacing:0.5px;
+    cursor:pointer; white-space:nowrap; transition:all 0.2s;
+  }
+  .btn-primary:hover { box-shadow:0 4px 16px rgba(0,229,255,0.3); }
+  .btn-danger { background: linear-gradient(135deg,var(--accent2),#ff6b35); color:#fff; }
+  .btn-sm { padding:6px 12px; font-size:12px; border-radius:6px; }
+  .stock-bar { width:60px; height:4px; background:var(--surface3); border-radius:2px; }
+  .stock-fill { height:100%; border-radius:2px; background:var(--green); transition:width 0.5s; }
+  .stock-fill.mid { background:var(--yellow); }
+  .stock-fill.low { background:var(--accent2); }
+
+  /* ── CLIENTES ── */
+  .clients-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .client-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:18px; transition:all 0.2s;
+  }
+  .client-card:hover { border-color:var(--accent3); box-shadow:0 4px 20px rgba(124,77,255,0.1); }
+  .client-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .client-avatar { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; flex-shrink:0; }
+  .client-name { font-size:15px; font-weight:600; }
+  .client-since { font-size:11px; color:var(--text2); }
+  .client-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .client-stat { background:var(--surface2); border-radius:7px; padding:10px; text-align:center; }
+  .client-stat strong { display:block; font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; }
+  .client-stat small { font-size:10px; color:var(--text2); }
+
+  /* ── CATALOG (cliente) ── */
+  .catalog-hero {
+    background: linear-gradient(135deg, rgba(0,229,255,0.08), rgba(124,77,255,0.08));
+    border:1px solid var(--border); border-radius:14px; padding:28px;
+    margin-bottom:20px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .hero-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 12px; border-radius:20px;
+    background:rgba(0,229,255,0.12); color:var(--accent);
+    font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .catalog-hero h2 { font-family:'Rajdhani',sans-serif; font-size:28px; font-weight:700; margin-bottom:6px; }
+  .catalog-hero p { font-size:14px; color:var(--text2); }
+  .hero-img { font-size:80px; opacity:0.6; }
+  .catalog-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .catalog-item {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; overflow:hidden; transition:all 0.2s;
+  }
+  .catalog-item:hover { border-color:var(--accent3); transform:translateY(-3px); box-shadow:0 8px 30px rgba(124,77,255,0.1); }
+  .catalog-img { height:100px; display:flex; align-items:center; justify-content:center; font-size:48px; background:var(--surface2); }
+  .catalog-info { padding:14px; }
+  .catalog-name { font-size:14px; font-weight:500; margin-bottom:4px; }
+  .catalog-desc { font-size:11px; color:var(--text2); margin-bottom:10px; line-height:1.5; }
+  .catalog-price { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:var(--accent); margin-bottom:10px; }
+  .add-to-quote { width:100%; padding:8px; border-radius:7px; border:1px solid var(--accent); background:transparent; color:var(--accent); font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.2s; }
+  .add-to-quote:hover { background:var(--accent); color:#000; }
+  .quote-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; position:sticky; top:88px; }
+
+  /* ── TOAST ── */
+  #toast {
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(100px);
+    background:var(--surface3); border:1px solid var(--border); border-radius:10px;
+    padding:14px 20px; font-size:14px; z-index:9999;
+    transition:transform 0.3s ease; white-space:nowrap;
+    display:flex; align-items:center; gap:8px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  }
+  #toast.show { transform:translateX(-50%) translateY(0); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.7);
+    z-index:500; display:none; align-items:center; justify-content:center;
+    backdrop-filter:blur(4px);
+  }
+  .modal-overlay.open { display:flex; }
+  .modal {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:28px; width:480px;
+    max-height:90vh; overflow-y:auto; animation:cardIn 0.3s ease;
+  }
+  .modal h3 { font-family:'Rajdhani',sans-serif; font-size:22px; font-weight:700; margin-bottom:20px; }
+  .modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .modal-actions { display:flex; gap:10px; margin-top:20px; }
+  .btn-secondary { padding:10px 18px; border-radius:8px; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; cursor:pointer; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:var(--surface); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-bg">
+    <div class="grid-lines"></div>
+    <div class="scan-line"></div>
+  </div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">📹</div>
+      <div>
+        <h1>SecureVision</h1>
+        <span>POS — CCTV Solutions</span>
+      </div>
+    </div>
+    <div class="login-tabs">
+      <div class="login-tab active" onclick="setLoginTab('admin')">Administrador</div>
+      <div class="login-tab" onclick="setLoginTab('client')">Cliente</div>
+    </div>
+    <div class="form-group">
+      <label>Usuario</label>
+      <input type="text" id="login-user" placeholder="admin / cliente" value="admin">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••" value="1234">
+    </div>
+    <button class="btn-login" onclick="doLogin()">INGRESAR AL SISTEMA</button>
+    <div class="demo-hint">
+      <strong>Demo Admin:</strong> usuario <strong>admin</strong> / pass <strong>1234</strong><br>
+      <strong>Demo Cliente:</strong> usuario <strong>cliente</strong> / pass <strong>1234</strong>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">📹</div>
+      <div>
+        <h2>SecureVision</h2>
+        <small id="sidebar-role">Admin Panel</small>
+      </div>
+    </div>
+    <div id="nav-menu"></div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="avatar" id="user-avatar">A</div>
+        <div class="user-info">
+          <strong id="user-name">Administrador</strong>
+          <small id="user-role">Super Admin</small>
+        </div>
+        <button class="logout-btn" onclick="logout()" title="Cerrar sesión">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <span style="color:var(--text3)">🔍</span>
+          <input placeholder="Buscar productos, clientes...">
+        </div>
+        <div class="icon-btn" title="Notificaciones">🔔</div>
+        <div class="icon-btn" title="Configuración">⚙️</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- ADMIN PAGES -->
+      <div class="page" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card cyan">
+            <div class="stat-label">Ventas Hoy</div>
+            <div class="stat-value cyan">$18,450</div>
+            <div class="stat-change up">↑ 12% vs ayer</div>
+            <div class="stat-icon">💰</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Órdenes Hoy</div>
+            <div class="stat-value green">24</div>
+            <div class="stat-change up">↑ 8% vs ayer</div>
+            <div class="stat-icon">📋</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label">Clientes Activos</div>
+            <div class="stat-value purple">142</div>
+            <div class="stat-change up">↑ 3 nuevos</div>
+            <div class="stat-icon">👥</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Stock Bajo</div>
+            <div class="stat-value red">7</div>
+            <div class="stat-change down">↓ Requiere atención</div>
+            <div class="stat-icon">⚠️</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Ventas — Últimos 7 días</div>
+            </div>
+            <div class="chart-area" id="sales-chart"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Ventas por Categoría</div></div>
+            <div class="donut-wrap" style="margin-top:10px">
+              <div class="donut">
+                <svg width="100" height="100" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--surface3)" stroke-width="14"/>
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--accent)" stroke-width="14" stroke-dasharray="100 139" stroke-dashoffset="0"/>
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--accent3)" stroke-width="14" stroke-dasharray="58 181" stroke-dashoffset="-100"/>
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--accent2)" stroke-width="14" stroke-dasharray="41 198" stroke-dashoffset="-158"/>
+                </svg>
+                <div class="donut-center"><strong>239</strong><small>ventas</small></div>
+              </div>
+              <div class="donut-legend">
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Cámaras IP <span style="margin-left:auto;color:var(--text2)">42%</span></div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>DVR/NVR <span style="margin-left:auto;color:var(--text2)">24%</span></div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Accesorios <span style="margin-left:auto;color:var(--text2)">17%</span></div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Kits Completos <span style="margin-left:auto;color:var(--text2)">17%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Últimas Órdenes</div>
+            <span class="see-all" onclick="navigate('orders')">Ver todas →</span>
+          </div>
+          <table class="table">
+            <thead><tr><th>#Orden</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody id="recent-orders"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- POS -->
+      <div class="page" id="page-pos">
+        <div class="pos-layout">
+          <div>
+            <div class="product-filters" id="pos-filters"></div>
+            <div class="products-grid" id="pos-products"></div>
+          </div>
+          <div class="cart-panel">
+            <div class="cart-title">🛒 Orden Actual</div>
+            <div class="cart-sub" id="cart-count">0 artículos</div>
+            <select class="client-select" id="cart-client">
+              <option value="">— Seleccionar cliente —</option>
+              <option>Carlos Hernández</option>
+              <option>María González</option>
+              <option>TechSeguridad SA</option>
+              <option>Roberto Vega</option>
+              <option>Construmax MX</option>
+            </select>
+            <div class="cart-items" id="cart-items"></div>
+            <hr class="cart-divider">
+            <div class="cart-row"><span style="color:var(--text2)">Subtotal</span><span id="cart-subtotal">$0.00</span></div>
+            <div class="cart-row"><span style="color:var(--text2)">IVA (16%)</span><span id="cart-iva">$0.00</span></div>
+            <div class="cart-row" style="margin-top:8px"><span style="font-weight:600">Total</span><span class="cart-total" id="cart-total">$0.00</span></div>
+            <div class="payment-methods" id="payment-methods" style="margin-top:12px"></div>
+            <button class="checkout-btn" id="checkout-btn" onclick="checkout()" disabled>COBRAR</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVENTARIO -->
+      <div class="page" id="page-inventory">
+        <div class="inv-controls">
+          <div class="inv-search"><span>🔍</span><input placeholder="Buscar por nombre, SKU..."></div>
+          <select class="client-select" style="width:auto;flex-shrink:0">
+            <option>Todas las categorías</option>
+            <option>Cámaras IP</option>
+            <option>DVR/NVR</option>
+            <option>Accesorios</option>
+            <option>Kits</option>
+          </select>
+          <button class="btn-primary" onclick="openProductModal()">+ Nuevo Producto</button>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Producto</th><th>SKU</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="inventory-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ÓRDENES -->
+      <div class="page" id="page-orders">
+        <div class="inv-controls" style="margin-bottom:20px">
+          <div class="inv-search"><span>🔍</span><input placeholder="Buscar orden, cliente..."></div>
+          <select class="client-select" style="width:auto;flex-shrink:0">
+            <option>Todos los estados</option>
+            <option>Pagado</option>
+            <option>Pendiente</option>
+            <option>Cancelado</option>
+          </select>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>#Orden</th><th>Cliente</th><th>Productos</th><th>Pago</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody id="orders-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CLIENTES -->
+      <div class="page" id="page-clients">
+        <div class="inv-controls" style="margin-bottom:20px">
+          <div class="inv-search"><span>🔍</span><input placeholder="Buscar cliente..."></div>
+          <button class="btn-primary" onclick="showToast('✅ Función próximamente')">+ Nuevo Cliente</button>
+        </div>
+        <div class="clients-grid" id="clients-grid"></div>
+      </div>
+
+      <!-- CLIENT: CATÁLOGO -->
+      <div class="page" id="page-catalog">
+        <div class="catalog-hero">
+          <div>
+            <div class="hero-badge">🛡️ Seguridad Profesional</div>
+            <h2>Catálogo CCTV 2025</h2>
+            <p>Productos de alta calidad para proteger lo que más importa</p>
+          </div>
+          <div class="hero-img">📹</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 300px;gap:16px">
+          <div>
+            <div class="product-filters" id="catalog-filters"></div>
+            <div class="catalog-grid" id="catalog-grid"></div>
+          </div>
+          <div class="quote-panel">
+            <div class="cart-title">📝 Mi Cotización</div>
+            <div class="cart-sub" id="quote-count">0 productos</div>
+            <div class="cart-items" id="quote-items"></div>
+            <hr class="cart-divider">
+            <div class="cart-row"><span style="color:var(--text2)">Total estimado</span></div>
+            <div class="cart-total" id="quote-total">$0.00</div>
+            <button class="checkout-btn" style="margin-top:14px" onclick="showToast('📧 Cotización enviada a tu email')">SOLICITAR COTIZACIÓN</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENT: MIS PEDIDOS -->
+      <div class="page" id="page-mypedidos">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Mis Pedidos</div></div>
+          <table class="table">
+            <thead><tr><th>#Orden</th><th>Productos</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody id="my-orders-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CLIENT: SOPORTE -->
+      <div class="page" id="page-support">
+        <div class="card" style="max-width:600px">
+          <div class="card-title" style="margin-bottom:16px">📞 Contactar Soporte</div>
+          <div class="form-group"><label>Asunto</label><input type="text" style="width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none" placeholder="Ej: Problema con mi pedido"></div>
+          <div class="form-group" style="margin-top:12px"><label>Mensaje</label><textarea style="width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;height:120px;resize:vertical" placeholder="Describe tu problema o pregunta..."></textarea></div>
+          <button class="btn-primary" style="margin-top:12px" onclick="showToast('✅ Mensaje enviado. Te responderemos pronto')">ENVIAR MENSAJE</button>
+          <hr class="cart-divider" style="margin-top:24px">
+          <div style="font-size:13px;color:var(--text2)">📱 WhatsApp: +52 864 123 4567 · ✉️ ventas@securevision.mx</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <h3>➕ Nuevo Producto</h3>
+    <div class="modal-grid">
+      <div class="form-group"><label>Nombre</label><input type="text" id="m-name" placeholder="Cámara IP 4K" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"></div>
+      <div class="form-group"><label>SKU</label><input type="text" id="m-sku" placeholder="CAM-001" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"></div>
+      <div class="form-group"><label>Precio</label><input type="number" id="m-price" placeholder="0.00" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"></div>
+      <div class="form-group"><label>Stock</label><input type="number" id="m-stock" placeholder="0" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Categoría</label>
+        <select id="m-cat" style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none">
+          <option>Cámaras IP</option><option>DVR/NVR</option><option>Accesorios</option><option>Kits</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveProduct()">GUARDAR</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">✅ Mensaje</div>
+
+<script>
+// ── DATA ──
+const products = [
+  {id:1,emoji:'📷',name:'Cámara IP 4K PoE Domo',sku:'CAM-001',cat:'Cámaras IP',price:1850,stock:28,desc:'4K, visión nocturna 30m, impermeable IP67'},
+  {id:2,emoji:'📹',name:'Cámara IP 2MP Bullet',sku:'CAM-002',cat:'Cámaras IP',price:980,stock:45,desc:'Full HD, detección de movimiento, exterior'},
+  {id:3,emoji:'🔭',name:'Cámara PTZ 360° 5MP',sku:'CAM-003',cat:'Cámaras IP',price:3200,stock:8,desc:'Zoom óptico 20x, seguimiento automático'},
+  {id:4,emoji:'🎥',name:'Cámara Mini Cube 1MP',sku:'CAM-004',cat:'Cámaras IP',price:650,stock:3,desc:'Interior, discreta, WiFi integrado'},
+  {id:5,emoji:'🖥️',name:'NVR 8 Canales 4K',sku:'NVR-001',cat:'DVR/NVR',price:4500,stock:14,desc:'8 canales, HDD 2TB incluido, H.265+'},
+  {id:6,emoji:'📺',name:'DVR 16 Canales HD',sku:'DVR-001',cat:'DVR/NVR',price:3100,stock:9,desc:'16 canales HDTVI, acceso remoto'},
+  {id:7,emoji:'💾',name:'NVR 4 Canales POE',sku:'NVR-002',cat:'DVR/NVR',price:2400,stock:20,desc:'4 canales, 4 puertos PoE, 1080p'},
+  {id:8,emoji:'📡',name:'Kit 8 Cámaras + NVR',sku:'KIT-001',cat:'Kits',price:12900,stock:5,desc:'Kit completo instalación, cable incluido'},
+  {id:9,emoji:'🔌',name:'Cable UTP Cat6 305m',sku:'ACC-001',cat:'Accesorios',price:850,stock:40,desc:'Rollo 305m, exterior, doble forro'},
+  {id:10,emoji:'⚡',name:'Fuente 12V 5A Regulada',sku:'ACC-002',cat:'Accesorios',price:320,stock:60,desc:'Regulada, protección contra cortocircuito'},
+  {id:11,emoji:'🔧',name:'Conector BNC Compresión',sku:'ACC-003',cat:'Accesorios',price:8,stock:500,desc:'Pack 10 unidades, alta calidad'},
+  {id:12,emoji:'📦',name:'Kit 4 Cámaras Bullet HD',sku:'KIT-002',cat:'Kits',price:6800,stock:7,desc:'4 cámaras bullet + DVR 4 canales'},
+];
+
+const orders = [
+  {id:'#001234',client:'Carlos Hernández',products:'Cámara IP 4K x2',pay:'Tarjeta',total:3700,status:'paid',date:'06/Mar/2026'},
+  {id:'#001233',client:'TechSeguridad SA',products:'Kit 8 Cámaras',pay:'Transferencia',total:12900,status:'paid',date:'05/Mar/2026'},
+  {id:'#001232',client:'María González',products:'NVR 8Ch + Cables',pay:'Efectivo',total:5350,status:'pending',date:'05/Mar/2026'},
+  {id:'#001231',client:'Roberto Vega',products:'DVR 16Ch',pay:'Tarjeta',total:3100,status:'paid',date:'04/Mar/2026'},
+  {id:'#001230',client:'Construmax MX',products:'Kit 4 Cámaras',pay:'Crédito',total:6800,status:'cancelled',date:'03/Mar/2026'},
+];
+
+const clients = [
+  {name:'Carlos Hernández',since:'Ene 2024',orders:12,total:38400,color:'#00e5ff',letter:'C'},
+  {name:'TechSeguridad SA',since:'Mar 2023',orders:28,total:142000,color:'#7c4dff',letter:'T'},
+  {name:'María González',since:'Jun 2024',orders:6,total:14200,color:'#ff3d57',letter:'M'},
+  {name:'Roberto Vega',since:'Oct 2024',orders:4,total:9800,color:'#00e676',letter:'R'},
+  {name:'Construmax MX',since:'Feb 2025',orders:9,total:61000,color:'#ffd600',letter:'C'},
+  {name:'Servicios Robles',since:'Nov 2024',orders:3,total:7400,color:'#ff6b35',letter:'S'},
+];
+
+// ── STATE ──
+let currentUser = null;
+let cart = [];
+let quoteCart = [];
+let payMethod = 'Efectivo';
+
+// ── AUTH ──
+let loginRole = 'admin';
+function setLoginTab(role) {
+  loginRole = role;
+  document.querySelectorAll('.login-tab').forEach((t,i)=>t.classList.toggle('active',i===(role==='admin'?0:1)));
+  document.getElementById('login-user').value = role==='admin'?'admin':'cliente';
+}
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim().toLowerCase();
+  const p = document.getElementById('login-pass').value;
+  if((u==='admin'||u==='administrador') && p==='1234') { currentUser='admin'; initApp(); }
+  else if((u==='cliente'||u==='client') && p==='1234') { currentUser='client'; initApp(); }
+  else showToast('❌ Credenciales incorrectas');
+}
+
+function logout() { currentUser=null; cart=[]; quoteCart=[];
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none'; }
+
+// ── INIT ──
+function initApp() {
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const isAdmin = currentUser==='admin';
+  document.getElementById('sidebar-role').textContent = isAdmin?'Admin Panel':'Portal Cliente';
+  document.getElementById('user-avatar').textContent = isAdmin?'A':'C';
+  document.getElementById('user-avatar').className = 'avatar '+(isAdmin?'admin':'client');
+  document.getElementById('user-name').textContent = isAdmin?'Administrador':'Carlos Hernández';
+  document.getElementById('user-role').textContent = isAdmin?'Super Admin':'Cliente Frecuente';
+  buildNav(isAdmin);
+  if(isAdmin) { buildDashboard(); buildPOS(); buildInventory(); buildOrders(); buildClients(); navigate('dashboard'); }
+  else { buildCatalog(); buildMyOrders(); navigate('catalog'); }
+}
+
+function buildNav(isAdmin) {
+  const adminNav = `
+    <div class="nav-section">Principal</div>
+    <div class="nav-item" onclick="navigate('dashboard')"><span class="nav-icon">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="navigate('pos')"><span class="nav-icon">🛒</span>Punto de Venta</div>
+    <div class="nav-section">Gestión</div>
+    <div class="nav-item" onclick="navigate('orders')"><span class="nav-icon">📋</span>Órdenes<span class="badge">24</span></div>
+    <div class="nav-item" onclick="navigate('inventory')"><span class="nav-icon">📦</span>Inventario</div>
+    <div class="nav-item" onclick="navigate('clients')"><span class="nav-icon">👥</span>Clientes</div>
+  `;
+  const clientNav = `
+    <div class="nav-section">Mi Cuenta</div>
+    <div class="nav-item" onclick="navigate('catalog')"><span class="nav-icon">🛍️</span>Catálogo</div>
+    <div class="nav-item" onclick="navigate('mypedidos')"><span class="nav-icon">📦</span>Mis Pedidos</div>
+    <div class="nav-item" onclick="navigate('support')"><span class="nav-icon">💬</span>Soporte</div>
+  `;
+  document.getElementById('nav-menu').innerHTML = isAdmin?adminNav:clientNav;
+}
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const p = document.getElementById('page-'+page);
+  if(p) p.classList.add('active');
+  const titles = {dashboard:'📊 Dashboard',pos:'🛒 Punto de Venta',inventory:'📦 Inventario',orders:'📋 Órdenes',clients:'👥 Clientes',catalog:'🛍️ Catálogo CCTV',mypedidos:'📦 Mis Pedidos',support:'💬 Soporte'};
+  document.getElementById('page-title').textContent = titles[page]||page;
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.textContent.trim().toLowerCase().includes(page.replace('my','mis').replace('pedidos','pedidos')||page)) n.classList.add('active');});
+}
+
+// ── DASHBOARD ──
+function buildDashboard() {
+  const days=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const vals=[8200,12400,6800,15100,18450,22000,9600];
+  const max=Math.max(...vals);
+  document.getElementById('sales-chart').innerHTML = days.map((d,i)=>`
+    <div class="bar-wrap">
+      <div class="bar" style="height:${Math.round(vals[i]/max*140)}px" title="$${vals[i].toLocaleString()}"></div>
+      <div class="bar-label">${d}</div>
+    </div>`).join('');
+  const tbody = document.getElementById('recent-orders');
+  tbody.innerHTML = orders.slice(0,5).map(o=>`<tr>
+    <td style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent)">${o.id}</td>
+    <td>${o.client}</td><td style="color:var(--text2)">${o.products}</td>
+    <td style="font-family:'Rajdhani',sans-serif;font-weight:700">$${o.total.toLocaleString()}</td>
+    <td><span class="status ${o.status}">${o.status==='paid'?'Pagado':o.status==='pending'?'Pendiente':'Cancelado'}</span></td>
+    <td style="color:var(--text2)">${o.date}</td>
+  </tr>`).join('');
+}
+
+// ── POS ──
+const cats = ['Todos','Cámaras IP','DVR/NVR','Kits','Accesorios'];
+let activeCat = 'Todos';
+
+function buildPOS() {
+  document.getElementById('pos-filters').innerHTML = cats.map(c=>`<div class="filter-chip ${c===activeCat?'active':''}" onclick="filterPOS('${c}')">${c}</div>`).join('');
+  const list = activeCat==='Todos'?products:products.filter(p=>p.cat===activeCat);
+  document.getElementById('pos-products').innerHTML = list.map(p=>`
+    <div class="product-card" onclick="addToCart(${p.id})">
+      <span class="product-emoji">${p.emoji}</span>
+      <div class="product-stock ${p.stock<=5?'stock-low':''}">${p.stock} uds</div>
+      <div class="product-name">${p.name}</div>
+      <div class="product-sku">${p.sku}</div>
+      <div class="product-price">$${p.price.toLocaleString()}</div>
+    </div>`).join('');
+  const pays=['Efectivo','Tarjeta','Transfer.','Crédito'];
+  document.getElementById('payment-methods').innerHTML = pays.map(m=>`<div class="pay-btn ${m===payMethod?'active':''}" onclick="setPayMethod('${m}')">${m}</div>`).join('');
+}
+
+function filterPOS(cat) { activeCat=cat; buildPOS(); }
+function setPayMethod(m) { payMethod=m; buildPOS(); }
+
+function addToCart(id) {
+  const prod = products.find(p=>p.id===id);
+  const ex = cart.find(i=>i.id===id);
+  if(ex) ex.qty++;
+  else cart.push({...prod,qty:1});
+  renderCart(); showToast(`✅ ${prod.name} agregado`);
+}
+
+function renderCart() {
+  const el = document.getElementById('cart-items');
+  if(!cart.length) { el.innerHTML='<div style="color:var(--text3);text-align:center;padding:20px;font-size:13px">Sin productos</div>'; }
+  else el.innerHTML = cart.map(i=>`
+    <div class="cart-item">
+      <div class="cart-item-info">
+        <div class="cart-item-name">${i.emoji} ${i.name}</div>
+        <div class="cart-item-price">$${(i.price*i.qty).toLocaleString()}</div>
+      </div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="cartQty(${i.id},-1)">−</button>
+        <span class="qty-num">${i.qty}</span>
+        <button class="qty-btn" onclick="cartQty(${i.id},1)">+</button>
+      </div>
+      <button class="remove-btn" onclick="removeCart(${i.id})">✕</button>
+    </div>`).join('');
+  const sub = cart.reduce((a,i)=>a+i.price*i.qty,0);
+  const iva = sub*0.16;
+  const total = sub+iva;
+  document.getElementById('cart-count').textContent = `${cart.reduce((a,i)=>a+i.qty,0)} artículos`;
+  document.getElementById('cart-subtotal').textContent = `$${sub.toLocaleString('es-MX',{minimumFractionDigits:2})}`;
+  document.getElementById('cart-iva').textContent = `$${iva.toLocaleString('es-MX',{minimumFractionDigits:2})}`;
+  document.getElementById('cart-total').textContent = `$${total.toLocaleString('es-MX',{minimumFractionDigits:2})}`;
+  document.getElementById('checkout-btn').disabled = !cart.length;
+}
+
+function cartQty(id,d) {
+  const i = cart.find(c=>c.id===id);
+  if(i) { i.qty+=d; if(i.qty<=0) removeCart(id); else renderCart(); }
+}
+function removeCart(id) { cart=cart.filter(c=>c.id!==id); renderCart(); }
+
+function checkout() {
+  const client = document.getElementById('cart-client').value||'Cliente General';
+  const sub = cart.reduce((a,i)=>a+i.price*i.qty,0);
+  orders.unshift({id:`#00${1234+orders.length+1}`,client,products:`${cart.length} producto(s)`,pay:payMethod,total:Math.round(sub*1.16),status:'paid',date:'Hoy'});
+  showToast(`💳 Venta de $${Math.round(sub*1.16).toLocaleString()} procesada exitosamente`);
+  cart=[]; renderCart();
+  setTimeout(()=>{ buildOrders(); },100);
+}
+
+// ── INVENTORY ──
+function buildInventory() {
+  document.getElementById('inventory-table').innerHTML = products.map(p=>{
+    const pct=Math.min(100,Math.round(p.stock/(p.stock<10?10:50)*100));
+    const cls=p.stock<=5?'low':p.stock<=15?'mid':'';
+    return `<tr>
+      <td><strong>${p.emoji} ${p.name}</strong></td>
+      <td style="font-family:'Rajdhani',sans-serif;color:var(--text2)">${p.sku}</td>
+      <td><span class="status new">${p.cat}</span></td>
+      <td style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent)">$${p.price.toLocaleString()}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="stock-bar"><div class="stock-fill ${cls}" style="width:${pct}%"></div></div>
+          <span style="font-size:13px;${p.stock<=5?'color:var(--accent2)':''}">${p.stock}</span>
+        </div>
+      </td>
+      <td><span class="status ${p.stock<=5?'cancelled':p.stock<=15?'pending':'paid'}">${p.stock<=5?'Stock Bajo':p.stock<=15?'Normal':'Óptimo'}</span></td>
+      <td><button class="btn-primary btn-sm" onclick="showToast('✏️ Editar próximamente')">Editar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── ORDERS ──
+function buildOrders() {
+  document.getElementById('orders-table').innerHTML = orders.map(o=>`<tr>
+    <td style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent)">${o.id}</td>
+    <td>${o.client}</td>
+    <td style="color:var(--text2)">${o.products}</td>
+    <td style="color:var(--text2)">${o.pay}</td>
+    <td style="font-family:'Rajdhani',sans-serif;font-weight:700">$${o.total.toLocaleString()}</td>
+    <td><span class="status ${o.status}">${o.status==='paid'?'Pagado':o.status==='pending'?'Pendiente':'Cancelado'}</span></td>
+    <td style="color:var(--text2)">${o.date}</td>
+  </tr>`).join('');
+}
+
+// ── CLIENTS ──
+function buildClients() {
+  document.getElementById('clients-grid').innerHTML = clients.map(c=>`
+    <div class="client-card">
+      <div class="client-header">
+        <div class="client-avatar" style="background:${c.color}22;color:${c.color}">${c.letter}</div>
+        <div>
+          <div class="client-name">${c.name}</div>
+          <div class="client-since">Cliente desde ${c.since}</div>
+        </div>
+      </div>
+      <div class="client-stats">
+        <div class="client-stat"><strong style="color:${c.color}">${c.orders}</strong><small>Órdenes</small></div>
+        <div class="client-stat"><strong style="color:var(--accent)">$${(c.total/1000).toFixed(0)}k</strong><small>Total</small></div>
+      </div>
+    </div>`).join('');
+}
+
+// ── CATALOG ──
+function buildCatalog() {
+  document.getElementById('catalog-filters').innerHTML = cats.map(c=>`<div class="filter-chip ${c==='Todos'?'active':''}" onclick="filterCatalog(this,'${c}')">${c}</div>`).join('');
+  renderCatalog(products);
+}
+
+function filterCatalog(el,cat) {
+  document.querySelectorAll('#catalog-filters .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderCatalog(cat==='Todos'?products:products.filter(p=>p.cat===cat));
+}
+
+function renderCatalog(list) {
+  document.getElementById('catalog-grid').innerHTML = list.map(p=>`
+    <div class="catalog-item">
+      <div class="catalog-img">${p.emoji}</div>
+      <div class="catalog-info">
+        <div class="catalog-name">${p.name}</div>
+        <div class="catalog-desc">${p.desc}</div>
+        <div class="catalog-price">$${p.price.toLocaleString()}</div>
+        <button class="add-to-quote" onclick="addToQuote(${p.id})">+ Agregar a cotización</button>
+      </div>
+    </div>`).join('');
+}
+
+function addToQuote(id) {
+  const prod = products.find(p=>p.id===id);
+  const ex = quoteCart.find(i=>i.id===id);
+  if(ex) ex.qty++;
+  else quoteCart.push({...prod,qty:1});
+  renderQuote(); showToast(`📝 ${prod.name} en tu cotización`);
+}
+
+function renderQuote() {
+  const el = document.getElementById('quote-items');
+  if(!quoteCart.length) { el.innerHTML='<div style="color:var(--text3);text-align:center;padding:20px;font-size:13px">Sin productos</div>'; }
+  else el.innerHTML = quoteCart.map(i=>`
+    <div class="cart-item">
+      <div class="cart-item-info">
+        <div class="cart-item-name">${i.emoji} ${i.name}</div>
+        <div class="cart-item-price">x${i.qty} — $${(i.price*i.qty).toLocaleString()}</div>
+      </div>
+      <button class="remove-btn" onclick="removeQuote(${i.id})">✕</button>
+    </div>`).join('');
+  const total = quoteCart.reduce((a,i)=>a+i.price*i.qty,0);
+  document.getElementById('quote-count').textContent=`${quoteCart.reduce((a,i)=>a+i.qty,0)} productos`;
+  document.getElementById('quote-total').textContent=`$${total.toLocaleString('es-MX',{minimumFractionDigits:2})}`;
+}
+function removeQuote(id) { quoteCart=quoteCart.filter(i=>i.id!==id); renderQuote(); }
+
+// ── MY ORDERS ──
+function buildMyOrders() {
+  const myOrds = orders.slice(0,3);
+  document.getElementById('my-orders-table').innerHTML = myOrds.map(o=>`<tr>
+    <td style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent)">${o.id}</td>
+    <td style="color:var(--text2)">${o.products}</td>
+    <td style="font-family:'Rajdhani',sans-serif;font-weight:700">$${o.total.toLocaleString()}</td>
+    <td><span class="status ${o.status}">${o.status==='paid'?'Pagado':o.status==='pending'?'Pendiente':'Cancelado'}</span></td>
+    <td style="color:var(--text2)">${o.date}</td>
+  </tr>`).join('');
+}
+
+// ── MODAL ──
+function openProductModal() { document.getElementById('product-modal').classList.add('open'); }
+function closeModal() { document.getElementById('product-modal').classList.remove('open'); }
+function saveProduct() {
+  const name=document.getElementById('m-name').value.trim();
+  if(!name){showToast('❌ Ingresa el nombre del producto');return;}
+  products.push({id:products.length+1,emoji:'📦',name,sku:document.getElementById('m-sku').value||'SKU-000',cat:document.getElementById('m-cat').value,price:+document.getElementById('m-price').value||0,stock:+document.getElementById('m-stock').value||0,desc:'Nuevo producto'});
+  closeModal(); buildInventory(); buildPOS();
+  showToast(`✅ "${name}" agregado al inventario`);
+}
+
+// ── TOAST ──
+function showToast(msg, dur=3000) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+// ── KEY ──
+document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&document.getElementById('login-screen').style.display!=='none') doLogin(); });
+</script>
+</body>
+</html>
